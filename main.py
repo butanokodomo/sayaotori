@@ -160,7 +160,7 @@ import streamlit as st
 
 # グラフの描画
 plt.style.use('ggplot')
-fig, ax = plt.subplots(figsize=(14, 7))
+fig, ax = plt.subplots(figsize=(12, 7))
 ax.plot(saya_ratio, color='#0000ff', alpha=0.9, label='Saya Ratio')
 ax.plot(sma, color='#ff3300', alpha=0.9, label='SMA ({})'.format(days))
 ax.fill_between(saya_ratio.index, upper_band1, lower_band1, color="#33ff66", alpha=0.7, label="$1\sigma$")
