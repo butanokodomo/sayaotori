@@ -13,13 +13,10 @@ code1 = c1.text_input('主')
 code2 = c2.text_input('脇')
 c3, c4 = st.columns([0.2, 0.2]) 
 hyouzi = c3.selectbox('グラフの表示日数',(365, 720, 1095))
-kabusa = c4.selectbox('株数誤差％',(5, 10))
+kabusa = c4.selectbox('株数誤差％',(10, 5))
 c5 = st.columns([0.2, 0.2]) 
 with c5[0]:syuuekikeisan = st.checkbox('total収益計算')
 
-# 株価データの取得①
-#stock1 = yf.Ticker('3289.T')
-#stock2 = yf.Ticker('8804.T')
 if code1 and code2:
     stock1 = yf.Ticker(f'{code1}.T')
     stock2 = yf.Ticker(f'{code2}.T')
@@ -49,14 +46,10 @@ last1 = df1.tail(1)  # データフレームの最後の行を取得
 last2 = df2.tail(1)  # データフレームの最後の行を取得
 close1 = df1['Close'].iloc[-1]
 close2 = df2['Close'].iloc[-1]
-#現在価格
-nowprice1 = stock1.info["currentPrice"]
-nowprice2 = stock2.info["currentPrice"]
-current_time = dt.datetime.now().strftime("%H:%M:%S")
+closebefore1 = df1['Close'].iloc[-2]
+closebefore2 = df2['Close'].iloc[-2]
 # サヤ比の計算
 saya_ratio = round(df1['Close'] / df2['Close'], 3)
-# リアルタイムサヤ比
-newsaya_ratio = round(nowprice1 / nowprice2, 3)
 # 移動平均線の計算
 sma = saya_ratio.rolling(window=days).mean()
 # 75日移動平均の計算
@@ -84,12 +77,9 @@ correlation = round(df3['Close'].corr(df4['Close']), 3)
 
 # 乖離率の計算
 distance_from_ma =round( (saya_ratio - saya_ma) / saya_ma, 3)
-# リアルタイム乖離率
-newdistance_from_ma =round( (newsaya_ratio - saya_ma) / saya_ma, 3)
 # σ値の計算
 sigma_value = round((saya_ratio - saya_ma) / (upper_band2- saya_ma) * 2, 3)
-# リアルタイムσ値
-newsigma_value = round((newsaya_ratio - saya_ma) / (upper_band2- saya_ma) * 2, 3)
+
 #株数算出
 def find_closest_value(row, matrix):
     closest_value = min(matrix, key=lambda x: abs(row - x))
@@ -131,41 +121,46 @@ if syuuekikeisan:
     
     st.write(f'収益：{syueki:,.0f}円')
 
+#当日変動価格
+# 当日の終値から前日の終値を引いて変動を計算し、hendou列を追加する
+hendou1 = df1['Close'].diff() * kabusu1 if saya_ratio.mean() < saya_ma.mean() else df1['Close'].diff() * kabusu1*-1
+hendou2 = df2['Close'].diff() * kabusu2*-1 if saya_ratio.mean() < saya_ma.mean() else df2['Close'].diff() * kabusu2
 
+# 変動の合計を計算し、totalhendouに代入する
+totalhendou = hendou1+hendou2
+
+#hendou1 = (close1 - closebefore1)*kabusu1 if saya_ratio.mean() < saya_ma.mean() else (closebefore1-close1)*kabusu1
+#hendou2 = (closebefore2-close2)*kabusu2 if saya_ratio.mean() < saya_ma.mean() else (close2 - closebefore2)*kabusu2
+#totalhendou = (hendou1+hendou2)
 #-印字------------------------------------------------------------------------------------------------------------------------------------
-st.write(f'1.軸  ：{code1}', f'　{kabusu1:,.0f}株',f'　 {nowprice1:,.0f}円')
-st.write(f'2.脇  ：{code2}', f'　 {kabusu2:,.0f}株'f'　{nowprice2:,.0f}円')
+st.write(f'{code1}', f'　{kabusu1:,.0f}株')#f'　{hendou1:,.0f}円')
+st.write(f'{code2}', f'　{kabusu2:,.0f}株')
 
 table = pd.DataFrame({
-    "相関関数": correlation,
+    "相関": correlation,
     "σ値": sigma_value,
     "サヤ比": saya_ratio,
     "移動平均": saya_ma,
     "乖離率": (distance_from_ma * 100).round(3).astype(str) + "%",
-    "交差回数": crossover_count,
+    "交差数": crossover_count,
+    "差益" : totalhendou
     
 })
-# リアルタイム収益を計算
-newsyueki = (close1 - nowprice1) * kabusu1 + (nowprice2 - close2) * kabusu2 if saya_ratio.mean() > saya_ma.mean() else (close2 - nowprice2) * kabusu2 + (nowprice1 - close1) * kabusu1
-table1 = pd.DataFrame({
-    
-    "収益": f'{newsyueki:,.0f}',
-    "σ値": newsigma_value,
-    "サヤ比": newsaya_ratio,
-    "乖離率": (newdistance_from_ma * 100).round(3).astype(str) + "%",
-})
+# 日付のみを抽出して行名に設定
+table.index = df1.index.strftime('%m/%d')
+# 列名を1行目に移動
+table.columns.name = "日付"
+# 2行目のDateを削除
+table.index.name = ""
+
 # テーブルの表示
-#table['行数'] = range(1, len(table) + 1)　行数追加でチェックする場合用
 st.write(table.tail(5)) #表示する行数を入れる
-#リアルタイムテーブル
-st.write("時間：", current_time)
-st.write(table1.tail(1))
 
 import streamlit as st
 
 # グラフの描画
 plt.style.use('ggplot')
-fig, ax = plt.subplots(figsize=(15, 5))
+fig, ax = plt.subplots(figsize=(14, 7))
 ax.plot(saya_ratio, color='#0000ff', alpha=0.9, label='Saya Ratio')
 ax.plot(sma, color='#ff3300', alpha=0.9, label='SMA ({})'.format(days))
 ax.fill_between(saya_ratio.index, upper_band1, lower_band1, color="#33ff66", alpha=0.7, label="$1\sigma$")
@@ -173,8 +168,15 @@ ax.fill_between(saya_ratio.index, upper_band2, lower_band2, color="#33ff66", alp
 ax.legend()
 ax.set_xlim(saya_ratio.index[75], saya_ratio.index[-1])  # 75日目から表示
 
-# x軸のメジャー目盛を1ヶ月ごとに設定する
+# x軸のメジャー目盛を2週間ごとに設定する
+ax.xaxis.set_major_locator(mdates.WeekdayLocator(interval=2))
+
+# x軸の目盛の表示形式を設定する
 ax.xaxis.set_major_formatter(mdates.DateFormatter('%Y/%m/%d'))
+
+# x軸の目盛ラベルを縦に斜めに表示する
+plt.xticks(rotation=75, ha='right')  # 修正: 数値の指定は不要です
+
 
 # Streamlitでグラフを表示
  # Streamlitでグラフを表示
