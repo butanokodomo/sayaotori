@@ -8,12 +8,21 @@ import matplotlib.dates as mdates
 import pandas_market_calendars as mcal
 #-条件------------------------------------------------------------------------------------------------------------------------------------
 st.title('サヤトリ')
-c1, c2 = st.columns([0.2, 0.2]) 
-code1 = c1.text_input('主')
-code2 = c2.text_input('脇')
+#uploaded_file = st.file_uploader("Excelファイルをアップロード", type=["xlsx", "xls"])
+# onedrive上のエクセルファイルのURL
+exceldate = "https://1drv.ms/x/s!AgiIYO8iopUihSE_ZtAc3PrNIfd7?e=A929CH"
+# エクセルファイルをPandasのDataFrameに読み込む
+df = pd.read_excel(exceldate, engine='xlrd')
+c1, c2 = st.columns([0.2, 0.2])
+if df is not None:
+    code1 = c1.selectbox('主', df['コード1'])
+    code2 = c2.selectbox('脇', df['コード2'])
+else:
+    code1 = c1.text_input('主')
+    code2 = c2.text_input('脇')
 c3, c4 = st.columns([0.2, 0.2]) 
-hyouzi = c3.selectbox('グラフの表示日数',(365, 720, 1095))
-kabusa = c4.selectbox('株数誤差％',(10, 5))
+hyouzi = c3.selectbox('グラフの表示日数', (365, 720, 1095))
+kabusa = c4.selectbox('株数誤差％', (10, 5))
 c5 = st.columns([0.2, 0.2]) 
 with c5[0]:syuuekikeisan = st.checkbox('total収益計算')
 
